@@ -6,20 +6,20 @@ using ElevadorState.Elevator;
 /// Estado: porta fechada, elevador parado. É o estado "de repouso": a partir
 /// dele o elevador pode abrir a porta, iniciar um movimento ou entrar em manutenção.
 /// </summary>
-public sealed class PortaFechadaState : IElevatorState
+public sealed class PortaFechadaState : ElevatorStateBase
 {
-    public string Nome => "Porta Fechada";
+    public override string Nome => "Porta Fechada";
 
-    public string AbrirPorta(Elevador elevador)
+    public override string AbrirPorta(Elevador elevador)
     {
         var transicao = elevador.MudarEstado(elevador.PortaAberta);
         return $"Porta aberta.\n{transicao}";
     }
 
-    public string FecharPorta(Elevador elevador) =>
+    public override string FecharPorta(Elevador elevador) =>
         "A porta já está fechada.";
 
-    public string Subir(Elevador elevador)
+    public override string Subir(Elevador elevador)
     {
         if (elevador.AndarAtual >= Elevador.AndarMaximo)
         {
@@ -35,7 +35,7 @@ public sealed class PortaFechadaState : IElevatorState
         return $"Elevador iniciando subida...\n{transicao}\n{chegada}";
     }
 
-    public string Descer(Elevador elevador)
+    public override string Descer(Elevador elevador)
     {
         if (elevador.AndarAtual <= Elevador.AndarMinimo)
         {
@@ -51,12 +51,9 @@ public sealed class PortaFechadaState : IElevatorState
         return $"Elevador iniciando descida...\n{transicao}\n{chegada}";
     }
 
-    public string EntrarManutencao(Elevador elevador)
+    public override string EntrarManutencao(Elevador elevador)
     {
         var transicao = elevador.MudarEstado(elevador.Manutencao);
         return $"Entrando em manutenção...\n{transicao}";
     }
-
-    public string SairManutencao(Elevador elevador) =>
-        "O elevador não está em manutenção.";
 }

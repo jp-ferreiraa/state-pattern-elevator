@@ -38,9 +38,9 @@ Abaixo está a interface principal da aplicação em execução.
 ## Conceitos aplicados
 
 - **State Pattern (GoF)** — comportamento do elevador encapsulado em classes de estado intercambiáveis.
-- **Polimorfismo** — o `Context` chama sempre os mesmos métodos da interface `IElevatorState`; a implementação executada depende apenas do objeto de estado referenciado em tempo de execução.
+- **Polimorfismo** — o `Context` chama sempre os mesmos métodos da classe base `ElevatorStateBase`; a implementação executada depende apenas do objeto de estado referenciado em tempo de execução.
 - **Encapsulamento** — os membros que alteram o estado interno do elevador (`MudarEstado`, `IncrementarAndar`, `DecrementarAndar` e as instâncias de cada estado) são `internal`. Nada fora do próprio mecanismo de estados pode manipular o elevador ignorando suas regras.
-- **Interfaces** — `IElevatorState` define o contrato que todo estado precisa cumprir, sem expor detalhes de implementação.
+- **Abstração e Princípio DRY** — `ElevatorStateBase` define a estrutura comum e mensagens padrão de bloqueio para operações não permitidas, permitindo que cada estado concreto sobrescreva apenas as operações que suporta.
 - **Baixo acoplamento** — nenhum estado conhece os demais diretamente; toda transição passa pelo `Elevador`, que expõe as instâncias de estado necessárias.
 - **Responsabilidade única** — cada classe de estado responde apenas pelo comportamento do seu próprio estado.
 
@@ -54,12 +54,14 @@ ElevadorState/
 ├── Elevator/
 │   └── Elevador.cs
 ├── States/
-│   ├── IElevatorState.cs
+│   ├── ElevatorStateBase.cs
 │   ├── PortaAbertaState.cs
 │   ├── PortaFechadaState.cs
 │   ├── SubindoState.cs
 │   ├── DescendoState.cs
-│   └── ManutencaoState.cs
+│   ├── ManutencaoState.cs
+│   ├── EmergenciaState.cs
+│   └── ExcessoPesoState.cs
 └── assets/
     ├── console.png
     ├── demo.gif
@@ -67,7 +69,7 @@ ElevadorState/
 ```
 
 - **`Elevator/Elevador.cs`** — o `Context` do padrão. Mantém o andar atual e o estado corrente, delegando toda operação ao estado ativo. Não contém regras de negócio.
-- **`States/IElevatorState.cs`** — interface que define o contrato comum de todos os estados.
+- **`States/ElevatorStateBase.cs`** — classe abstrata base que define métodos virtuais com comportamento padrão de bloqueio (DRY).
 - **`States/*.cs`** — implementações concretas dos estados do elevador.
 - **`Program.cs`** — camada de apresentação responsável apenas pela interação com o usuário.
 
@@ -75,7 +77,7 @@ ElevadorState/
 
 ## Funcionamento do padrão State
 
-O `Elevador` mantém uma referência ao estado atual através da propriedade `EstadoAtual`, do tipo `IElevatorState`. Todas as operações públicas do elevador (`AbrirPorta()`, `Subir()` etc.) seguem o mesmo formato:
+O `Elevador` mantém uma referência ao estado atual através da propriedade `EstadoAtual`, do tipo `ElevatorStateBase`. Todas as operações públicas do elevador (`AbrirPorta()`, `Subir()` etc.) seguem o mesmo formato:
 
 ```csharp
 public void AbrirPorta() => Console.WriteLine(EstadoAtual.AbrirPorta(this));
@@ -83,7 +85,7 @@ public void AbrirPorta() => Console.WriteLine(EstadoAtual.AbrirPorta(this));
 
 Não existe, em nenhum lugar do `Elevador`, uma verificação do tipo "se o estado é tal, faça isso". Quem decide o comportamento é sempre o objeto de estado associado no momento — o `Elevador` apenas delega a chamada.
 
-Uma decisão de design importante foi fazer com que os métodos de `IElevatorState` recebam o `Elevador` como parâmetro (`AbrirPorta(Elevador elevador)`), em vez de armazenar uma referência ao contexto em cada estado. Isso torna os estados objetos *stateless*, permitindo que o `Elevador` reutilize uma única instância de cada estado durante toda sua vida útil.
+Uma decisão de design importante foi fazer com que os métodos de `ElevatorStateBase` recebam o `Elevador` como parâmetro (`AbrirPorta(Elevador elevador)`), em vez de armazenar uma referência ao contexto em cada estado. Isso torna os estados objetos *stateless*, permitindo que o `Elevador` reutilize uma única instância de cada estado durante toda sua vida útil.
 
 As transições de estado são sempre iniciadas pelo próprio estado concreto através de `elevador.MudarEstado(...)`, mantendo toda a lógica de mudança encapsulada nas classes responsáveis.
 
@@ -93,11 +95,22 @@ As transições de estado são sempre iniciadas pelo próprio estado concreto at
 
 | Estado | Responsabilidade |
 |---|---|
-| `PortaAbertaState` | Elevador parado com porta aberta. Permite fechar a porta ou entrar em manutenção. |
+| `PortaAbertaState` | Elevador parado com porta aberta. Permite fechar a porta, adicionar/remover peso ou entrar em manutenção. Se a carga exceder o limite, transiciona para `ExcessoPesoState`. |
 | `PortaFechadaState` | Estado de repouso. Permite abrir a porta, subir, descer ou entrar em manutenção. |
 | `SubindoState` | Controla o movimento de subida e retorna ao estado de repouso após concluir a operação. |
 | `DescendoState` | Controla o movimento de descida e retorna ao estado de repouso após concluir a operação. |
-| `ManutencaoState` | Bloqueia todas as operações, permitindo apenas sair da manutenção. |
+| `ManutencaoState` | Bloqueia todas as operações regulares, permitindo apenas sair da manutenção ou responder ao alarme de emergência. |
+| `EmergenciaState` | Acionado via alarme de incêndio. Força o elevador a descer imediatamente ao andar 0 (térreo), abre as portas e trava os comandos de movimento e manutenção até o desarme. |
+| `ExcessoPesoState` | Acionado quando a carga na cabine ultrapassa a capacidade máxima (500 kg). Bloqueia o fechamento da porta até que o peso seja aliviado para um nível seguro. |
+
+---
+
+## Extensibilidade e o Princípio Aberto/Fechado (OCP)
+
+A introdução dos estados `EmergenciaState` e `ExcessoPesoState` comprova na prática o **Open/Closed Principle (OCP)** do SOLID:
+
+1. **Aberto para Extensão**: Novos comportamentos complexos de segurança e capacidade foram integrados ao ecossistema criando novas classes que herdam de `ElevatorStateBase`.
+2. **Fechado para Modificação**: O `Elevador` (Context) permaneceu completamente livre de condicionais (`if`/`switch`) baseadas em estado. Nenhuma regra de transição pré-existente foi corrompida, garantindo que cada estado mantenha isolamento rígido sobre suas próprias validações e reações. Além disso, através da classe base `ElevatorStateBase` (DRY), novos estados e operações podem ser adicionados sem exigir código repetitivo de mensagens de bloqueio em todos os outros estados.
 
 ---
 
@@ -149,8 +162,7 @@ dotnet run
 
 ## Possíveis melhorias futuras
 
-- Configurar o andar máximo através do construtor do `Elevador`.
-- Adicionar um novo estado (`EmergenciaState`) para demonstrar a extensibilidade do padrão.
+- Configurar o andar máximo e a carga máxima através do construtor do `Elevador`.
 - Escrever testes unitários para validar todas as transições de estado.
 
 ---

@@ -6,20 +6,14 @@ using ElevadorState.Elevator;
 /// Estado: elevador descendo. Simétrico ao SubindoState: sabe como mover
 /// o elevador um andar para baixo e quando encerrar o movimento.
 /// </summary>
-public sealed class DescendoState : IElevatorState
+public sealed class DescendoState : ElevatorStateBase
 {
-    public string Nome => "Descendo";
+    public override string Nome => "Descendo";
 
-    public string AbrirPorta(Elevador elevador) =>
-        "Não é possível abrir a porta enquanto o elevador está descendo.";
-
-    public string FecharPorta(Elevador elevador) =>
-        "A porta já está fechada; o elevador está em movimento.";
-
-    public string Subir(Elevador elevador) =>
+    public override string Subir(Elevador elevador) =>
         "Não é possível inverter o sentido: o elevador já está descendo.";
 
-    public string Descer(Elevador elevador)
+    public override string Descer(Elevador elevador)
     {
         elevador.DecrementarAndar();
         var chegada = $"Elevador descendo... chegou ao andar {elevador.AndarAtual}.";
@@ -29,10 +23,4 @@ public sealed class DescendoState : IElevatorState
 
         return $"{chegada}\n{transicao}";
     }
-
-    public string EntrarManutencao(Elevador elevador) =>
-        "Não é possível entrar em manutenção enquanto o elevador está em movimento.";
-
-    public string SairManutencao(Elevador elevador) =>
-        "O elevador não está em manutenção.";
 }

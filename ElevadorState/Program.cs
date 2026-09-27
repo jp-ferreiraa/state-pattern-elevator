@@ -1,5 +1,6 @@
 using System.Text;
 using ElevadorState.Elevator;
+using ElevadorState.States;
 
 // Garante que acentos (ã, ç, é...) apareçam corretamente no console,
 // independentemente do codepage padrão do terminal do usuário.
@@ -37,13 +38,31 @@ while (continuar)
         case "6":
             (mensagem, tipo) = Executar(elevador.SairManutencao);
             break;
+        case "7":
+            Console.Write("  Informe o peso a adicionar em kg [padrão: 100]: ");
+            var pesoAddStr = Console.ReadLine();
+            var pesoAdd = string.IsNullOrWhiteSpace(pesoAddStr) || !double.TryParse(pesoAddStr, out var pAdd) ? 100.0 : pAdd;
+            (mensagem, tipo) = Executar(() => elevador.AdicionarPeso(pesoAdd));
+            break;
+        case "8":
+            Console.Write("  Informe o peso a remover em kg [padrão: 100]: ");
+            var pesoRemStr = Console.ReadLine();
+            var pesoRem = string.IsNullOrWhiteSpace(pesoRemStr) || !double.TryParse(pesoRemStr, out var pRem) ? 100.0 : pRem;
+            (mensagem, tipo) = Executar(() => elevador.RemoverPeso(pesoRem));
+            break;
+        case "9":
+            (mensagem, tipo) = Executar(elevador.AcionarAlarme);
+            break;
+        case "10":
+            (mensagem, tipo) = Executar(elevador.DesarmarAlarme);
+            break;
         case "0":
             continuar = false;
             mensagem = "Encerrando o sistema do elevador...";
             tipo = TipoMensagem.Neutra;
             break;
         default:
-            mensagem = "Opção inválida. Digite um número entre 0 e 6.";
+            mensagem = "Opção inválida. Digite um número correspondente às opções do menu.";
             tipo = TipoMensagem.Invalida;
             break;
     }
@@ -111,13 +130,39 @@ static void EscreverInfoElevador(Elevador elevador)
     // Estado e andar ficam sempre visíveis no topo — por isso o menu não
     // precisa mais de opções separadas para consultá-los.
     Console.Write("  Estado atual : ");
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine(elevador.EstadoAtual.Nome);
+    if (elevador.EstadoAtual is EmergenciaState)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"[EMERGÊNCIA] {elevador.EstadoAtual.Nome}");
+    }
+    else if (elevador.EstadoAtual is ExcessoPesoState)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkRed;
+        Console.WriteLine($"[SOBRECARGA] {elevador.EstadoAtual.Nome}");
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(elevador.EstadoAtual.Nome);
+    }
     Console.ResetColor();
 
     Console.Write("  Andar atual  : ");
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine(elevador.AndarAtual == 0 ? "0 (térreo)" : elevador.AndarAtual.ToString());
+    Console.ResetColor();
+
+    Console.Write("  Carga atual  : ");
+    if (elevador.CargaAtualKg > Elevador.CargaMaximaKg)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"{elevador.CargaAtualKg:0.#} kg / {Elevador.CargaMaximaKg:0.#} kg [EXCESSO DE PESO]");
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"{elevador.CargaAtualKg:0.#} kg / {Elevador.CargaMaximaKg:0.#} kg");
+    }
     Console.ResetColor();
 }
 
@@ -126,13 +171,17 @@ static void EscreverMenu()
     Console.WriteLine(Separador);
     Console.WriteLine("  MENU");
     Console.WriteLine(Separador);
-    Console.WriteLine("  1  Abrir porta");
-    Console.WriteLine("  2  Fechar porta");
-    Console.WriteLine("  3  Subir");
-    Console.WriteLine("  4  Descer");
-    Console.WriteLine("  5  Entrar em manutenção");
-    Console.WriteLine("  6  Sair da manutenção");
-    Console.WriteLine("  0  Encerrar aplicação");
+    Console.WriteLine("  1   Abrir porta");
+    Console.WriteLine("  2   Fechar porta");
+    Console.WriteLine("  3   Subir");
+    Console.WriteLine("  4   Descer");
+    Console.WriteLine("  5   Entrar em manutenção");
+    Console.WriteLine("  6   Sair da manutenção");
+    Console.WriteLine("  7   Adicionar peso");
+    Console.WriteLine("  8   Remover peso");
+    Console.WriteLine("  9   Acionar alarme de incêndio");
+    Console.WriteLine("  10  Desarmar alarme de incêndio");
+    Console.WriteLine("  0   Encerrar aplicação");
     Console.WriteLine(Separador);
 }
 
@@ -174,8 +223,17 @@ static (string mensagem, TipoMensagem tipo) Executar(Action operacao)
     return (texto, ClassificarMensagem(texto));
 }
 
-static TipoMensagem ClassificarMensagem(string texto) =>
-    texto.Contains(">> Estado alterado para:") ? TipoMensagem.Sucesso : TipoMensagem.Erro;
+static TipoMensagem ClassificarMensagem(string texto)
+{
+    if (texto.Contains("BLOQUEADO") || texto.Contains("Não é possível") || texto.Contains("ALERTA:"))
+    {
+        return TipoMensagem.Erro;
+    }
+
+    return texto.Contains(">> Estado alterado para:") || texto.Contains("Porta") || texto.Contains("Elevador") || texto.Contains("Alarme") || texto.Contains("Peso") || texto.Contains("Adicionado") || texto.Contains("Removido")
+        ? TipoMensagem.Sucesso
+        : TipoMensagem.Erro;
+}
 
 enum TipoMensagem
 {

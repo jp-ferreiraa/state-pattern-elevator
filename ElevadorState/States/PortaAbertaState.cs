@@ -4,33 +4,45 @@ using ElevadorState.Elevator;
 
 /// <summary>
 /// Estado: porta aberta. O elevador não pode se mover enquanto a porta
-/// estiver aberta; a porta precisa ser fechada primeiro.
+/// estiver aberta; a porta precisa ser fechada primeiro. Permite também
+/// entrada e saída de passageiros/cargas (pesagem).
 /// </summary>
-public sealed class PortaAbertaState : IElevatorState
+public sealed class PortaAbertaState : ElevatorStateBase
 {
-    public string Nome => "Porta Aberta";
+    public override string Nome => "Porta Aberta";
 
-    public string AbrirPorta(Elevador elevador) =>
+    public override string AbrirPorta(Elevador elevador) =>
         "A porta já está aberta.";
 
-    public string FecharPorta(Elevador elevador)
+    public override string FecharPorta(Elevador elevador)
     {
         var transicao = elevador.MudarEstado(elevador.PortaFechada);
         return $"Porta fechada.\n{transicao}";
     }
 
-    public string Subir(Elevador elevador) =>
-        "Não é possível subir com a porta aberta. Feche a porta primeiro.";
-
-    public string Descer(Elevador elevador) =>
-        "Não é possível descer com a porta aberta. Feche a porta primeiro.";
-
-    public string EntrarManutencao(Elevador elevador)
+    public override string EntrarManutencao(Elevador elevador)
     {
         var transicao = elevador.MudarEstado(elevador.Manutencao);
         return $"Entrando em manutenção...\n{transicao}";
     }
 
-    public string SairManutencao(Elevador elevador) =>
-        "O elevador não está em manutenção.";
+    public override string AdicionarPeso(Elevador elevador, double pesoKg)
+    {
+        elevador.AlterarCarga(pesoKg);
+        var info = $"Adicionado {pesoKg} kg. Carga atual: {elevador.CargaAtualKg:0.#} kg (Limite: {Elevador.CargaMaximaKg:0.#} kg).";
+
+        if (elevador.CargaAtualKg > Elevador.CargaMaximaKg)
+        {
+            var transicao = elevador.MudarEstado(elevador.ExcessoPeso);
+            return $"{info}\nALERTA: Carga máxima excedida! Fechamento de portas bloqueado.\n{transicao}";
+        }
+
+        return info;
+    }
+
+    public override string RemoverPeso(Elevador elevador, double pesoKg)
+    {
+        elevador.AlterarCarga(-pesoKg);
+        return $"Removido {pesoKg} kg. Carga atual: {elevador.CargaAtualKg:0.#} kg (Limite: {Elevador.CargaMaximaKg:0.#} kg).";
+    }
 }

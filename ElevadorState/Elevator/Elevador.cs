@@ -14,9 +14,11 @@ public sealed class Elevador
 {
     public const int AndarMinimo = 0;
     public const int AndarMaximo = 10;
+    public const double CargaMaximaKg = 500.0;
 
     public int AndarAtual { get; private set; }
-    public IElevatorState EstadoAtual { get; private set; }
+    public double CargaAtualKg { get; private set; }
+    public ElevatorStateBase EstadoAtual { get; private set; }
 
     // Instâncias únicas de cada estado (evita recriar objetos a cada transição).
     // Internas: apenas as próprias classes de estado precisam referenciá-las
@@ -26,10 +28,13 @@ public sealed class Elevador
     internal SubindoState Subindo { get; } = new();
     internal DescendoState Descendo { get; } = new();
     internal ManutencaoState Manutencao { get; } = new();
+    internal EmergenciaState Emergencia { get; } = new();
+    internal ExcessoPesoState ExcessoPeso { get; } = new();
 
     public Elevador()
     {
         AndarAtual = 0;
+        CargaAtualKg = 0.0;
         EstadoAtual = PortaFechada; // Regra de negócio: começa no térreo, porta fechada.
     }
 
@@ -37,7 +42,7 @@ public sealed class Elevador
     /// Realiza a troca de estado e retorna uma mensagem descrevendo a transição.
     /// Chamado pelos próprios estados concretos — nunca pela camada de apresentação.
     /// </summary>
-    internal string MudarEstado(IElevatorState novoEstado)
+    internal string MudarEstado(ElevatorStateBase novoEstado)
     {
         EstadoAtual = novoEstado;
         return $">> Estado alterado para: {novoEstado.Nome}";
@@ -46,6 +51,13 @@ public sealed class Elevador
     internal void IncrementarAndar() => AndarAtual++;
 
     internal void DecrementarAndar() => AndarAtual--;
+
+    internal void DefinirAndar(int andar) => AndarAtual = andar;
+
+    internal void AlterarCarga(double deltaKg)
+    {
+        CargaAtualKg = Math.Max(0.0, Math.Round(CargaAtualKg + deltaKg, 2));
+    }
 
     // Operações do Context: cada uma delega imediatamente para o estado atual
     // e imprime a mensagem de resultado. Note que não existe if/switch aqui
@@ -62,4 +74,12 @@ public sealed class Elevador
     public void EntrarManutencao() => Console.WriteLine(EstadoAtual.EntrarManutencao(this));
 
     public void SairManutencao() => Console.WriteLine(EstadoAtual.SairManutencao(this));
+
+    public void AcionarAlarme() => Console.WriteLine(EstadoAtual.AcionarAlarme(this));
+
+    public void DesarmarAlarme() => Console.WriteLine(EstadoAtual.DesarmarAlarme(this));
+
+    public void AdicionarPeso(double pesoKg) => Console.WriteLine(EstadoAtual.AdicionarPeso(this, pesoKg));
+
+    public void RemoverPeso(double pesoKg) => Console.WriteLine(EstadoAtual.RemoverPeso(this, pesoKg));
 }

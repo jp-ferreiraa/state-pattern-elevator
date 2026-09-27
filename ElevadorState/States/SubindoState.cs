@@ -8,17 +8,11 @@ using ElevadorState.Elevator;
 /// possível entrar em manutenção. É este estado que efetivamente sabe
 /// como mover o elevador um andar para cima e quando parar.
 /// </summary>
-public sealed class SubindoState : IElevatorState
+public sealed class SubindoState : ElevatorStateBase
 {
-    public string Nome => "Subindo";
+    public override string Nome => "Subindo";
 
-    public string AbrirPorta(Elevador elevador) =>
-        "Não é possível abrir a porta enquanto o elevador está subindo.";
-
-    public string FecharPorta(Elevador elevador) =>
-        "A porta já está fechada; o elevador está em movimento.";
-
-    public string Subir(Elevador elevador)
+    public override string Subir(Elevador elevador)
     {
         elevador.IncrementarAndar();
         var chegada = $"Elevador subindo... chegou ao andar {elevador.AndarAtual}.";
@@ -29,12 +23,6 @@ public sealed class SubindoState : IElevatorState
         return $"{chegada}\n{transicao}";
     }
 
-    public string Descer(Elevador elevador) =>
+    public override string Descer(Elevador elevador) =>
         "Não é possível inverter o sentido: o elevador já está subindo.";
-
-    public string EntrarManutencao(Elevador elevador) =>
-        "Não é possível entrar em manutenção enquanto o elevador está em movimento.";
-
-    public string SairManutencao(Elevador elevador) =>
-        "O elevador não está em manutenção.";
 }

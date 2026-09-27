@@ -9,4 +9,8 @@
     <AssemblyName>ElevadorState</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="States\IElevatorState.cs" />
+  </ItemGroup>
+
 </Project>
